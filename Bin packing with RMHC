@@ -1,0 +1,169 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace BinPacking
+{
+    public class RandomMutationHillClimbing
+    {
+        public class Solution
+        {
+            public List<List<double>> bins; 
+
+            public Solution()
+            {
+                bins = new List<List<double>>();
+            }
+        }
+
+        static void Main(string[] args)
+        {
+            // apendix block heights
+            double[] blocks = {
+                55.44, 15.12, 0.77, 3.1, 95.24, 89.59, 7.12, 58.77, 78.98, 55.76,
+                30.34, 17.5, 44.05, 74.76, 28.4, 96.55, 87.78, 65.56, 72.91, 39.74,
+                39.52, 38.72, 8.12, 32.31, 12.28, 52.15, 89.93, 15.9, 3.37, 2.18
+            };
+
+            double binCapacity = 130.0; 
+            int maxIterations = 1000000; 
+
+            // Initialize
+            Solution currentSolution = GenerateRandomSolution(blocks, binCapacity);
+            Solution bestSolution = currentSolution;
+            double bestFitness = EvaluateFitness(currentSolution);
+
+            int iterations = 0;
+            Random rand = new Random();
+
+            // Optimization loop
+            while (iterations < maxIterations)
+            {
+                Solution neighborSolution = CopySolution(currentSolution);
+                ApplyRandomMutation(ref neighborSolution, blocks, binCapacity, rand);
+
+                double neighborFitness = EvaluateFitness(neighborSolution);
+
+                if (neighborFitness < bestFitness) // Minimize the number of bins 
+                {
+                    bestSolution = neighborSolution;
+                    bestFitness = neighborFitness;
+                    currentSolution = neighborSolution;
+                }
+
+                iterations++;
+            }
+
+            
+            Console.WriteLine("Best solution found:");
+            foreach (var bin in bestSolution.bins)
+            {
+                Console.WriteLine($"Bin: {string.Join(", ", bin)}");
+            }
+            Console.WriteLine($"Fitness: {bestFitness}");
+        }
+
+        static Solution GenerateRandomSolution(double[] blocks, double binCapacity)
+        {
+            Solution solution = new Solution();
+            List<double> bin = new List<double>();
+
+            // Shuffle the blocks to improve randomness in the initial packing
+            Random rand = new Random();
+            var shuffledBlocks = blocks.OrderBy(x => rand.Next()).ToArray();
+
+            foreach (var block in shuffledBlocks)
+            {
+                if (bin.Sum() + block <= binCapacity)
+                {
+                    bin.Add(block);
+                }
+                else
+                {
+                    solution.bins.Add(bin);
+                    bin = new List<double> { block };
+                }
+            }
+
+            if (bin.Count > 0) solution.bins.Add(bin);
+
+            return solution;
+        }
+
+        static double EvaluateFitness(Solution solution)
+        {
+            return solution.bins.Count; // Fitness is the number of bins used
+        }
+
+        static Solution CopySolution(Solution solution)
+        {
+            Solution newSolution = new Solution();
+            foreach (var bin in solution.bins)
+            {
+                newSolution.bins.Add(new List<double>(bin));
+            }
+            return newSolution;
+        }
+
+        static void ApplyRandomMutation(ref Solution solution, double[] blocks, double binCapacity, Random rand)
+        {
+            if (solution.bins.Count == 0) return;
+
+            // Shuffle bins to ensure random mutations
+            int binIndex = rand.Next(solution.bins.Count);
+            int targetBinIndex = rand.Next(solution.bins.Count);
+
+            // Pick a block from the bin to move to another bin
+            if (solution.bins[binIndex].Count > 0)
+            {
+                int blockIndex = rand.Next(solution.bins[binIndex].Count);
+                double block = solution.bins[binIndex][blockIndex];
+
+                // Remove the block from the selected bin
+                solution.bins[binIndex].RemoveAt(blockIndex);
+
+                // Try placing the block in the target bin, or create a new one if it doesn't fit
+                if (solution.bins[targetBinIndex].Sum() + block <= binCapacity)
+                {
+                    solution.bins[targetBinIndex].Add(block);
+                }
+                else
+                {
+                    solution.bins.Add(new List<double> { block });
+                }
+            }
+
+       
+            ShuffleBlocksInBins(ref solution, rand);
+        }
+
+        static void ShuffleBlocksInBins(ref Solution solution, Random rand)
+        {
+            List<double> allBlocks = new List<double>();
+            foreach (var bin in solution.bins)
+            {
+                allBlocks.AddRange(bin);
+            }
+
+            // Shuffle the blocks and redistribute them into bins
+            allBlocks = allBlocks.OrderBy(x => rand.Next()).ToList();
+
+            // Redistribute blocks back into bins
+            solution.bins.Clear();
+            List<double> newBin = new List<double>();
+            foreach (var block in allBlocks)
+            {
+                if (newBin.Sum() + block <= 130)
+                {
+                    newBin.Add(block);
+                }
+                else
+                {
+                    solution.bins.Add(newBin);
+                    newBin = new List<double> { block };
+                }
+            }
+            if (newBin.Count > 0) solution.bins.Add(newBin);
+        }
+    }
+}
